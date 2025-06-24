@@ -1,76 +1,95 @@
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x000000);
 
-const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
+const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
 camera.position.z = 5;
 
-const renderer = new THREE.WebGLRenderer({antialias: true});
+const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
-document.getElementById('scene-container').appendChild(renderer.domElement);
+document.getElementById("scene-container").appendChild(renderer.domElement);
 
-// Iluminação mágica
-const light = new THREE.PointLight(0x00ffcc, 2, 100);
-light.position.set(10, 10, 10);
-scene.add(light);
+// Luz ambiente + luz direcional
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+scene.add(ambientLight);
 
-// Tronco da flor
+const directionalLight = new THREE.DirectionalLight(0x00ffff, 1);
+directionalLight.position.set(5, 5, 5);
+scene.add(directionalLight);
+
+// Tronco (caule)
 const stemGeometry = new THREE.CylinderGeometry(0.05, 0.05, 2, 32);
 const stemMaterial = new THREE.MeshStandardMaterial({ color: 0x007f5f });
 const stem = new THREE.Mesh(stemGeometry, stemMaterial);
 stem.position.y = -0.5;
 scene.add(stem);
 
-// Folhas
-const leafGeometry = new THREE.SphereGeometry(0.2, 16, 16);
+// Folhas (achatadas, verdes)
+const leafGeometry = new THREE.SphereGeometry(0.3, 16, 16);
 const leafMaterial = new THREE.MeshStandardMaterial({ color: 0x00ffcc });
+const leftLeaf = new THREE.Mesh(leafGeometry, leafMaterial);
+const rightLeaf = new THREE.Mesh(leafGeometry, leafMaterial);
 
-const leaves = [];
-for (let i = 0; i < 2; i++) {
-  const leaf = new THREE.Mesh(leafGeometry, leafMaterial);
-  leaf.position.set(i === 0 ? -0.3 : 0.3, -0.3, 0);
-  leaves.push(leaf);
-  scene.add(leaf);
-}
+leftLeaf.scale.set(1.2, 0.5, 0.8);
+rightLeaf.scale.set(1.2, 0.5, 0.8);
 
-// Pétalas
-const petalGeometry = new THREE.SphereGeometry(0.15, 16, 16);
-const petalMaterial = new THREE.MeshStandardMaterial({ color: 0x6600ff, emissive: 0x3300ff });
+leftLeaf.position.set(-0.4, -0.3, 0);
+rightLeaf.position.set(0.4, -0.3, 0);
+
+scene.add(leftLeaf);
+scene.add(rightLeaf);
+
+// Pétalas alongadas
+const petalGeometry = new THREE.ConeGeometry(0.1, 0.5, 32);
+const petalMaterial = new THREE.MeshStandardMaterial({
+  color: 0x6600ff,
+  emissive: 0x3300ff,
+  metalness: 0.3,
+  roughness: 0.2,
+});
 
 const petals = [];
-const numPetals = 5;
-for (let i = 0; i < numPetals; i++) {
-  const angle = (i / numPetals) * Math.PI * 2;
+const petalCount = 6;
+const radius = 0.4;
+
+for (let i = 0; i < petalCount; i++) {
+  const angle = (i / petalCount) * Math.PI * 2;
+  const x = Math.cos(angle) * radius;
+  const z = Math.sin(angle) * radius;
   const petal = new THREE.Mesh(petalGeometry, petalMaterial);
-  petal.position.set(Math.cos(angle) * 0.3, 1, Math.sin(angle) * 0.3);
+  petal.position.set(x, 1, z);
+  petal.rotation.x = Math.PI / 2;
+  petal.lookAt(0, 1, 0); // faz olhar para o centro
   petals.push(petal);
   scene.add(petal);
 }
 
-// Animação de nascimento
+// Animação suave de crescimento e abertura
 let growth = 0;
+
 function animate() {
   requestAnimationFrame(animate);
-  
-  if (growth < 1) growth += 0.005;
 
+  if (growth < 1) {
+    growth += 0.01;
+  }
+
+  // Faz tudo crescer suavemente
   stem.scale.y = growth;
   stem.position.y = -0.5 + growth;
 
-  leaves.forEach((leaf, i) => {
-    leaf.scale.set(growth, growth, growth);
-    leaf.rotation.z = Math.sin(Date.now() * 0.002 + i);
-  });
+  leftLeaf.scale.set(1.2 * growth, 0.5 * growth, 0.8 * growth);
+  rightLeaf.scale.set(1.2 * growth, 0.5 * growth, 0.8 * growth);
 
-  petals.forEach((petal, i) => {
+  petals.forEach((petal, index) => {
     petal.scale.set(growth, growth, growth);
-    petal.rotation.y += 0.01;
   });
 
   renderer.render(scene, camera);
 }
+
 animate();
 
-window.addEventListener('resize', () => {
+window.addEventListener("resize", () => {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
