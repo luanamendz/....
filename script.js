@@ -1,110 +1,77 @@
-const canvas = document.getElementById('canvas');
-const ctx = canvas.getContext('2d');
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x000000);
 
-canvas.width = window.innerWidth;
-canvas.height = window.innerHeight;
+const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
+camera.position.z = 5;
 
-let particles = [];
-const numParticles = 200;
+const renderer = new THREE.WebGLRenderer({antialias: true});
+renderer.setSize(window.innerWidth, window.innerHeight);
+document.getElementById('scene-container').appendChild(renderer.domElement);
 
-let formingHeart = false;
+// Iluminação mágica
+const light = new THREE.PointLight(0x00ffcc, 2, 100);
+light.position.set(10, 10, 10);
+scene.add(light);
 
-class Particle {
-    constructor() {
-        this.reset();
-        this.size = 3;
-        this.targetX = null;
-        this.targetY = null;
-    }
+// Tronco da flor
+const stemGeometry = new THREE.CylinderGeometry(0.05, 0.05, 2, 32);
+const stemMaterial = new THREE.MeshStandardMaterial({ color: 0x007f5f });
+const stem = new THREE.Mesh(stemGeometry, stemMaterial);
+stem.position.y = -0.5;
+scene.add(stem);
 
-    reset() {
-        this.x = Math.random() * canvas.width;
-        this.y = Math.random() * canvas.height;
-        this.speedX = (Math.random() - 0.5) * 2;
-        this.speedY = (Math.random() - 0.5) * 2;
-    }
+// Folhas
+const leafGeometry = new THREE.SphereGeometry(0.2, 16, 16);
+const leafMaterial = new THREE.MeshStandardMaterial({ color: 0x00ffcc });
 
-    update() {
-        if (formingHeart) {
-            const dx = this.targetX - this.x;
-            const dy = this.targetY - this.y;
-            this.x += dx * 0.05;
-            this.y += dy * 0.05;
-        } else {
-            this.x += this.speedX;
-            this.y += this.speedY;
-
-            if (this.x < 0 || this.x > canvas.width) this.speedX *= -1;
-            if (this.y < 0 || this.y > canvas.height) this.speedY *= -1;
-        }
-    }
-
-    draw() {
-        ctx.beginPath();
-        ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
-        ctx.fillStyle = 'red';
-        ctx.fill();
-    }
+const leaves = [];
+for (let i = 0; i < 2; i++) {
+  const leaf = new THREE.Mesh(leafGeometry, leafMaterial);
+  leaf.position.set(i === 0 ? -0.3 : 0.3, -0.3, 0);
+  leaves.push(leaf);
+  scene.add(leaf);
 }
 
-function heartShape(t, scale) {
-    const x = scale * 16 * Math.pow(Math.sin(t), 3);
-    const y = -scale * (13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t));
-    return { x, y };
+// Pétalas
+const petalGeometry = new THREE.SphereGeometry(0.15, 16, 16);
+const petalMaterial = new THREE.MeshStandardMaterial({ color: 0x6600ff, emissive: 0x3300ff });
+
+const petals = [];
+const numPetals = 5;
+for (let i = 0; i < numPetals; i++) {
+  const angle = (i / numPetals) * Math.PI * 2;
+  const petal = new THREE.Mesh(petalGeometry, petalMaterial);
+  petal.position.set(Math.cos(angle) * 0.3, 1, Math.sin(angle) * 0.3);
+  petals.push(petal);
+  scene.add(petal);
 }
 
-function createParticles() {
-    particles = [];
-    for (let i = 0; i < numParticles; i++) {
-        const p = new Particle();
-        particles.push(p);
-    }
-}
-
-createParticles();
-
-function formHeart() {
-    formingHeart = true;
-    const centerX = canvas.width / 2;
-    const centerY = canvas.height / 2;
-    const scale = Math.min(canvas.width, canvas.height) / 50;
-
-    particles.forEach((particle, index) => {
-        const t = (index / numParticles) * Math.PI * 2;
-        const pos = heartShape(t, scale);
-        particle.targetX = centerX + pos.x;
-        particle.targetY = centerY + pos.y;
-    });
-}
-
+// Animação de nascimento
+let growth = 0;
 function animate() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+  requestAnimationFrame(animate);
+  
+  if (growth < 1) growth += 0.005;
 
-    particles.forEach(p => {
-        p.update();
-        p.draw();
-    });
+  stem.scale.y = growth;
+  stem.position.y = -0.5 + growth;
 
-    requestAnimationFrame(animate);
+  leaves.forEach((leaf, i) => {
+    leaf.scale.set(growth, growth, growth);
+    leaf.rotation.z = Math.sin(Date.now() * 0.002 + i);
+  });
+
+  petals.forEach((petal, i) => {
+    petal.scale.set(growth, growth, growth);
+    petal.rotation.y += 0.01;
+  });
+
+  renderer.render(scene, camera);
 }
-
 animate();
 
 window.addEventListener('resize', () => {
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-    if (!formingHeart) createParticles();
-});
-
-// 🎶 Música
-const playButton = document.getElementById('playButton');
-const audio = document.getElementById('audio');
-
-audio.volume = 0.05; // Volume baixo
-
-playButton.addEventListener('click', () => {
-    audio.play();
-    setTimeout(() => {
-        formHeart();
-    }, 10000); // Forma o coração 10 segundos depois do play
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
 });
